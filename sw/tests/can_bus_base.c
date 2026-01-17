@@ -11,6 +11,7 @@
 #include "dif/uart.h"
 #include "params.h"
 #include "util.h"
+#include <stdio.h>
 
 #define CTU_CAN_FD_DEVICE_ID 0x0
 #define CTU_CAN_FD_VERSION 0x2
@@ -23,5 +24,6 @@ int main(void) {
     *reg32(&__base_can_bus, CTU_CAN_FD_MODE) = can_fd_mode;
     can_fd_mode = *reg32(&__base_can_bus, CTU_CAN_FD_MODE);
     int error = (can_fd_mode == can_fd_mode_buffer);
+    printf("CAN Bus ILBP Test: %s\r\n", error ? "FAILED" : "PASSED");
     return error;
 }
