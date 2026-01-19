@@ -43,6 +43,7 @@ void uart_setup(void){
 	uart_write_str(&__base_uart, init, sizeof(init) - 1);
     uart_write_flush(&__base_uart);
 }
+
 void can_rx(void){    //Can RX 
     uint16_t rx_status;
     do{
@@ -74,6 +75,7 @@ void can_rx(void){    //Can RX
         printf("Recieved data : 0x%02X\r\n", data[j]);
     }
 }
+
 void can_init(void){
     uint32_t device_id = *reg32(&__base_can_bus, CTU_CAN_FD_DEVICE_ID);
     printf("CAN Version  = 0x%x (expected 0x0204CAFD)\n",device_id);
@@ -152,7 +154,9 @@ void can_init(void){
     can_fd_mode_check = *reg32(&__base_can_bus, CTU_CAN_FD_MODE);
     printf("Can fd mode after Enable: 0x%08X\r\n", can_fd_mode_check);
 }
-void can_tx(void){unsigned int frame_format_word = 0;
+
+void can_tx(void){
+    unsigned int frame_format_word = 0;
     unsigned int pattern = 0xAABBCCDD;
     unsigned int pattern1 = 0x12345678;
     frame_format_word |= 8; //DLC
