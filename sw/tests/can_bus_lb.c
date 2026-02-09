@@ -127,26 +127,14 @@ void can_init(void){
     // BTS 1M
  
     printf("CAN Init @1M with clock 20MHz \n");
-    btr = (1<<19);    //time quanta
-    btr |= 9;         // prop
-    btr |= (5<<7);    // phase 1
-    btr |= (5<<13);   // phase 2
+    btr = (4<<19);    //time quanta
+    btr |= 29;         // prop
+    btr |= (10<<7);    // phase 1
+    btr |= (10<<13);   // phase 2
     btr |= (3<<27);   // SJW
     // (9+5+5+1)*1 = 20 * 50ns = 1us = 1 Mbit
- 
- 
- 
+  
     *reg32(&__base_can_bus, CTU_CAN_FD_BTR_ADDR) = btr;
-
-    printf("CAN SAM \n");
-    *reg32(&__base_can_bus, CTU_CAN_FD_MODE) |= 1 << 11;
-    can_fd_mode_check = *reg32(&__base_can_bus, CTU_CAN_FD_MODE);
-    printf("Can fd mode after SAM: 0x%08X\r\n", can_fd_mode_check);
-
-    printf("CAN ILBP \n");
-    *reg32(&__base_can_bus, CTU_CAN_FD_MODE) |= 1 << 21;
-    can_fd_mode_check = *reg32(&__base_can_bus, CTU_CAN_FD_MODE);
-    printf("Can fd mode after ILBP: 0x%08X\r\n", can_fd_mode_check);
  
     printf("CAN Enable \n");
     *reg32(&__base_can_bus, CTU_CAN_FD_MODE) |= 1 << 22;
@@ -166,7 +154,7 @@ void can_tx(void){
     frame_format_word |= (0 << 9);  // NO CAN switch bitrate
 
     //loopback frame
-    frame_format_word |= (1 << 8); // CAN Loopback frame
+    //frame_format_word |= (1 << 8); // CAN Loopback frame
  
     printf("CAN fill buffer 1 \n");
     *reg32(&__base_can_bus, CTU_CAN_FD_TXTB1_DATA1) = frame_format_word;
@@ -186,10 +174,10 @@ void can_tx(void){
     printf("CAN command Tx \n");
     *reg32(&__base_can_bus, CTU_CAN_FD_TX_COMMAND) = command;
 
-    //can_rx();
-    do{
-         can_rx();
-    }while((*reg32(&__base_can_bus, CTU_CAN_FD_TX_STATUS) & 0x00000082) == 1);
+    // //can_rx();
+    // do{
+    //      can_rx();
+    // }while((*reg32(&__base_can_bus, CTU_CAN_FD_TX_STATUS) & 0x00000082) == 1);
     
 
     uint16_t fault_state_check = *reg32(&__base_can_bus, FAULT_STATE);

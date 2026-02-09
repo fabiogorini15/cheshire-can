@@ -9,7 +9,6 @@
 # Override this as needed
 CHS_SW_GCC_BINROOT ?= $(dir $(shell which riscv64-unknown-elf-gcc))
 CHS_SW_DTC     ?= dtc
-
 CHS_SW_AR      := $(CHS_SW_GCC_BINROOT)/riscv64-unknown-elf-ar
 CHS_SW_CC      := $(CHS_SW_GCC_BINROOT)/riscv64-unknown-elf-gcc
 CHS_SW_OBJCOPY := $(CHS_SW_GCC_BINROOT)/riscv64-unknown-elf-objcopy
@@ -58,6 +57,7 @@ CHS_SW_LIB_SRCS_C  = $(wildcard $(CHS_SW_DIR)/lib/*.c $(CHS_SW_DIR)/lib/**/*.c)
 CHS_SW_LIB_SRCS_O  = $(CHS_SW_DEPS_SRCS:.c=.o) $(CHS_SW_LIB_SRCS_S:.S=.o) $(CHS_SW_LIB_SRCS_C:.c=.o)
 
 CHS_SW_LIBS = $(CHS_SW_DIR)/lib/libcheshire.a
+CHS_SW_LIBS += -lm #for math.h header file
 
 $(CHS_SW_DIR)/lib/libcheshire.a: $(CHS_SW_LIB_SRCS_O)
 	rm -f $@

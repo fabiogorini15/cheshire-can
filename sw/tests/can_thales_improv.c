@@ -9,22 +9,26 @@
 #include "printf.h"
 
 #define MEM(addr) (*(volatile uint32_t *)(addr))
-#define BSWAP32(x) ( ((x)<<24) | (((x)&0xFF00)<<8) | (((x)>>8)&0xFF00) | ((x)>>24) )
+#define BSWAP32(x) (((x)<<24) | (((x)&0xFF00)<<8) | (((x)>>8)&0xFF00) | ((x)>>24))
 
 #define CAN_BASE_ADDRESS        0x0300A000
-#define CAN_REG_DEVICE_ID       (CAN_BASE_ADDRESS + 0x00)
-#define CAN_REG_SETTING_MODE    (CAN_BASE_ADDRESS + 0x04)
-#define CAN_BTR_ADDR            (CAN_BASE_ADDRESS + 0x24)
-#define CAN_FD_ADDR             (CAN_BASE_ADDRESS + 0x28) 
-#define CAN_TX_COMMAND_ADDR     (CAN_BASE_ADDRESS + 0x74) 
+#define CAN_REG_DEVICE_ID       (CAN_BASE_ADDRESS + 0x000)
+#define CAN_REG_SETTING_MODE    (CAN_BASE_ADDRESS + 0x004)
+#define CAN_BTR_ADDR            (CAN_BASE_ADDRESS + 0x024)
+#define CAN_FD_ADDR             (CAN_BASE_ADDRESS + 0x028) 
+#define CAN_TX_COMMAND_ADDR     (CAN_BASE_ADDRESS + 0x074) 
 #define CAN_TXT_BUFFER_1_BASE   (CAN_BASE_ADDRESS + 0x100) 
-#define CAN_REG_YOLO            (CAN_BASE_ADDRESS + 0x90)
-#define FAULT_STATE             (CAN_BASE_ADDRESS + 0X2E)
-#define TX_STATUS               (CAN_BASE_ADDRESS + 0x70)
-#define RETR_CTR                (CAN_BASE_ADDRESS + 0x7D)
-#define DEBUG_REGISTER          (CAN_BASE_ADDRESS + 0x8C)   
-#define RX_DATA_ADDR            (CAN_BASE_ADDRESS + 0x6C)
-#define RX_STATUS_ADDR          (CAN_BASE_ADDRESS + 0x68)
+#define CAN_REG_YOLO            (CAN_BASE_ADDRESS + 0x090)
+#define FAULT_STATE             (CAN_BASE_ADDRESS + 0X02E)
+#define TX_STATUS               (CAN_BASE_ADDRESS + 0x070)
+#define RETR_CTR                (CAN_BASE_ADDRESS + 0x07D)
+#define DEBUG_REGISTER          (CAN_BASE_ADDRESS + 0x08C)   
+#define RX_DATA_ADDR            (CAN_BASE_ADDRESS + 0x06C)
+#define RX_STATUS_ADDR          (CAN_BASE_ADDRESS + 0x068)
+#define COMMAND_ADDR            (CAN_BASE_ADDRESS + 0x00C)
+#define RX_MEM_INFO_ADDR        (CAN_BASE_ADDRESS + 0x060) 
+#define CAN_STATUS_ADDR         (CAN_BASE_ADDRESS + 0x008)
+
 
 const char* tx_states[] = {
     "TXT_NOT_EXIST",  // 0
@@ -38,7 +42,13 @@ const char* tx_states[] = {
     "TXT_ETY",        // 8
     "TXT_PER",        // 9
 };
-
+const char* rx_states[] = {
+    "UNUSED",  // 0
+    "RXE",        // 1
+    "RXF",       // 2
+    "UNUSED",       // 3
+    "RXMOF",        // 4
+};
 const char* fault_states[] = {
     "UNUSED",  // 0
     "ERA",     // 1
@@ -47,6 +57,9 @@ const char* fault_states[] = {
     "BOF",     // 4
 };
 
+void wait_ms(volatile unsigned int count);
+void uart_setup(void);
+void can_test(void);
 void can_init(void);
 void can_tx(void);
 void can_rx(void);
@@ -71,13 +84,13 @@ void can_test(void) {
     printf("CAN Version  = 0x%x (expected 0x0204CAFD)\n",MEM(CAN_REG_DEVICE_ID));
     printf("CAN_REG_YOLO = 0x%x (expected 0xDEADBEEF)\n",MEM(CAN_REG_YOLO));
     can_init();
-    // while(1) {
-    //     can_rx();
-    // }
-    for(int i=0; i<10; i++){
-        wait_ms(100000);
-        can_tx();
+    while(1) {
+        can_rx();
     }
+    // for(int i=0; i<10; i++){
+    //     wait_ms(100000);
+    //     can_tx();
+    // }
     
 }
 
@@ -123,7 +136,7 @@ void can_init(void) {
     MEM(CAN_BTR_ADDR) = btr;
     printf("Can CAN BTR (expected 0x1821451D): 0x%08X\r\n", MEM(CAN_BTR_ADDR));
 
-    MEM(CAN_REG_SETTING_MODE) |= 1 << 21; // enable ILBP
+    //MEM(CAN_REG_SETTING_MODE) |= 1 << 21; // enable ILBP
 
     printf("Check CAN FD Fault State before enabling: %s\r\n",fault_states[MEM(FAULT_STATE) & 0x07]);
 
@@ -184,15 +197,15 @@ void can_tx(void) {
 }
     
 void can_rx(void) {
-    printf("CAN Polling RX Buffer \n");
-    /* Poll on RX Buffer until there is a frame in it */
-    uint32_t rx_status;
-    printf("Can RX STATUS register before polling: 0x%08X\r\n", MEM(RX_STATUS_ADDR));
+    /* Frame reception in automatic mode */
 
+    printf("CAN Polling RX Buffer \n");
+    uint32_t status;
+    printf("Can STATUS register before polling: 0x%01X\r\n",MEM(CAN_STATUS_ADDR) & 0x01);
     do {
-    rx_status = MEM(RX_STATUS_ADDR);
-    } while ((rx_status & 0x1) == 0);
-    printf("Can RX STATUS register after polling: 0x%08X\r\n", MEM(RX_STATUS_ADDR));
+    status = MEM(CAN_STATUS_ADDR);
+    } while ((status & 0x01) == 0);
+    printf("Can STATUS register after polling: 0x%01X\r\n",MEM(CAN_STATUS_ADDR) & 0x01);
 
     /* Read frame from RX buffer */
     uint8_t data[64];
@@ -209,9 +222,13 @@ void can_rx(void) {
         data[i*4+2] = (tmp >> 16) & 0xFF;
         data[i*4+3] = (tmp >> 24) & 0xFF;
     }
-    printf("Received CAN frame with ID: 0x%X, DLC: %d, Data: ", id, rwcnt);
-    for(uint32_t i = 0; i < rwcnt; i++){
-        printf("0x%02X ", data[i]);
+    if(!(ffw & (0 << 6))) id = (id >> 18) & 0x7FF; // standard IDE
+
+    printf("FFW: 0x%08X\r\n", ffw);
+    for(uint32_t i=0; i<rwcnt*2; i++){
+        if (i == 0) printf("IDENTIFIER: 0X%08X\r\n", id);
+        else if (i == 1) printf("TIMESTAMP: 0X%08X%08X\r\n", ts_h, ts_l);
+        else printf("%02X", data[i-2]);
     }
     printf("\n");
 }
