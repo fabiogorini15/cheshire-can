@@ -5,6 +5,7 @@
 # Common OpenOCD script for Cheshire.
 
 transport select jtag
+gdb_port 3334
 telnet_port disabled
 tcl_port disabled
 reset_config none

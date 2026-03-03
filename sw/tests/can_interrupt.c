@@ -1,13 +1,11 @@
-/*Thales CAN FD test application*/
+//Thales CAN FD test application
 
 #include "regs/cheshire.h"
 #include "dif/clint.h"
 #include "dif/uart.h"
 #include "params.h"
 #include "util.h"
-
-#include <unistd.h>
-
+#include <stdio.h>
 #include "printf.h"
 
 #define MEM(addr) (*(volatile uint32_t *)(addr))
@@ -16,6 +14,11 @@
 #define CAN_BASE_ADDRESS        0x0300A000
 #define CAN_REG_DEVICE_ID       (CAN_BASE_ADDRESS + 0x000)
 #define CAN_REG_SETTING_MODE    (CAN_BASE_ADDRESS + 0x004)
+#define CAN_INT_STAT            (CAN_BASE_ADDRESS + 0x010)
+#define CAN_INT_ENA_SET         (CAN_BASE_ADDRESS + 0x014)
+#define CAN_INT_ENA_CLR         (CAN_BASE_ADDRESS + 0x018)
+#define CAN_INT_MASK_SET        (CAN_BASE_ADDRESS + 0x01C)
+#define CAN_INT_MASK_CLR        (CAN_BASE_ADDRESS + 0x020)
 #define CAN_BTR_ADDR            (CAN_BASE_ADDRESS + 0x024)
 #define CAN_FD_ADDR             (CAN_BASE_ADDRESS + 0x028) 
 #define CAN_TX_COMMAND_ADDR     (CAN_BASE_ADDRESS + 0x074) 
@@ -62,8 +65,10 @@ const char* fault_states[] = {
 void wait_ms(volatile unsigned int count);
 void uart_setup(void);
 void can_test(void);
-void can_init(void);
-void can_tx(void);
+void can_reset(void);
+void can_enable(void);
+void can_btr(void);
+void can_tx(const uint32_t *payload_w32, uint8_t dlc);
 void can_rx(void);
 
 
@@ -85,13 +90,12 @@ void uart_setup(void){
 void can_test(void) {
     printf("CAN Version  = 0x%x (expected 0x0204CAFD)\n",MEM(CAN_REG_DEVICE_ID));
     printf("CAN_REG_YOLO = 0x%x (expected 0xDEADBEEF)\n",MEM(CAN_REG_YOLO));
-    can_init();
-    // while(1) {
-    //     can_rx();
-    // }
+    can_reset();
+    can_btr();
+    can_enable();
     while(1) {
-        can_tx();
-    } 
+        can_rx();
+    }
     // for(int i=0; i<10; i++){
     //     wait_ms(100000);
     //     can_tx();
@@ -99,13 +103,16 @@ void can_test(void) {
     
 }
 
-void can_init(void) {
-    unsigned int btr = 0;
+void can_reset(void) {
     printf("CAN Reset \n");
     MEM(CAN_REG_SETTING_MODE) = 1;
     printf("Can CAN REG SETTING MODE during RESET : 0x%08X\r\n", MEM(CAN_REG_SETTING_MODE));
     wait_ms(100);
     printf("Can CAN REG SETTING MODE after RESET : 0x%08X\r\n", MEM(CAN_REG_SETTING_MODE));
+}
+
+void can_btr(void){
+    unsigned int btr = 0;
 
     // clock 50 MHz
     // BTS 250K
@@ -142,13 +149,13 @@ void can_init(void) {
     printf("Can CAN BTR (expected 0x1821451D): 0x%08X\r\n", MEM(CAN_BTR_ADDR));
 
     //MEM(CAN_REG_SETTING_MODE) |= 1 << 21; // enable ILBP
+}
 
+void can_enable(void){
     printf("Check CAN FD Fault State before enabling: %s\r\n",fault_states[MEM(FAULT_STATE) & 0x07]);
 
     printf("CAN Enable \n");
     MEM(CAN_REG_SETTING_MODE) |= 1 << 22;
-
-
 
     do {
         printf("Check CAN FD Fault State: %s\r\n", fault_states[MEM(FAULT_STATE) & 0x07]);
@@ -157,7 +164,7 @@ void can_init(void) {
     printf("Can CAN REG SETTING MODE after ENABLE (expected 0x02400210): 0x%08X\r\n", MEM(CAN_REG_SETTING_MODE));
 }
 
-void can_tx(void) {
+void can_tx(const uint32_t *payload_w32, uint8_t dlc) {
     unsigned int frame_format_word = 0;
     unsigned int pattern = BSWAP32(0xAABBCCDD);
     unsigned int pattern1 = BSWAP32(0x12345678);
