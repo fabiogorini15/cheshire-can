@@ -42,11 +42,14 @@
 #define RX_STATUS_ADDR          (CAN_BASE_ADDRESS + 0x068)
 #define RX_DATA_ADDR            (CAN_BASE_ADDRESS + 0x06C)
 #define TX_STATUS               (CAN_BASE_ADDRESS + 0x070)
-#define CAN_TX_COMMAND_ADDR     (CAN_BASE_ADDRESS + 0x074) 
+#define CAN_TX_COMMAND_ADDR     (CAN_BASE_ADDRESS + 0x074)
+#define TXTB_INFO               (CAN_BASE_ADDRESS + 0x076)
+#define CAN_TX_PRIORITY_ADDR    (CAN_BASE_ADDRESS + 0x078)
 #define RETR_CTR                (CAN_BASE_ADDRESS + 0x07D)
 #define DEBUG_REGISTER          (CAN_BASE_ADDRESS + 0x08C)   
 #define CAN_REG_YOLO            (CAN_BASE_ADDRESS + 0x090)
 #define CAN_TXT_BUFFER_1_BASE   (CAN_BASE_ADDRESS + 0x100)
+#define CAN_TXT_BUFFER_2_BASE   (CAN_BASE_ADDRESS + 0x200)
 
 
 /*DLC to bytes lookup table */
@@ -91,6 +94,25 @@ typedef enum {
     FAULT_UNUSED_2, // 3
     BOF,            // 4
 }fault_state_t;
+
+typedef enum {
+    FILTER_A = 0,
+    FILTER_B,
+    FILTER_C,
+} filter_id_t;
+
+typedef enum {
+    FILTER_FRAME_CAN20_BASE  = 0x1,  // FANB/FBNB/FCNB
+    FILTER_FRAME_CAN20_EXT   = 0x2,  // FANE/FBNE/FCNE
+    FILTER_FRAME_CANFD_BASE  = 0x4,  // FAFB/FBFB/FCFB
+    FILTER_FRAME_CANFD_EXT   = 0x8,  // FAFD/FBFD/FCFD (se disponibile)
+} filter_frame_t;
+
+typedef enum {
+    CAN_BITRATE_250K = 0,
+    CAN_BITRATE_500K,
+    CAN_BITRATE_1M,
+} can_bitrate_t;
 
 /*Mode Settings register definitions */
 ///Mode Settings register bits
@@ -231,6 +253,23 @@ union Fault_State_CTU_CAN_FD {
     } bits;
 };
 
+/*RX Status register definitions */
+///RX Status register bits
+union RX_Status_CTU_CAN_FD {
+    ///Access all bits
+    uint16_t all;
+
+    ///Access individual bits
+    struct BitField_RX_Status_CTU_CAN_FD {
+        uint32_t rxe :1;
+        uint32_t rxf :1; 
+        uint32_t rxmof :1;
+        uint32_t reserved1 :1;
+        uint32_t rxfrc :11;
+        uint32_t reserved2 :1;
+    } bits;
+};
+
 /*TX Status register definitions */
 ///TX Status register bits
 union TX_Status_CTU_CAN_FD {
@@ -326,7 +365,7 @@ const char* fault_state_to_str(fault_state_t s);
 /*Init Functions*/
 void wait_ms(volatile unsigned int count);
 void can_test(void);
-void can_btr(void);
+void can_btr(can_bitrate_t bitrate, can_bitrate_t bitrate_fd);
 void can_enable(void);
 
 /*Reset Functions*/
@@ -335,6 +374,7 @@ void can_reset(void);
 /* Can TX RX Functions*/
 void can_tx(const uint32_t *payload_w32, const union ffw_CTU_CAN_FD *ffw, const union id_w_CTU_CAN_FD *id_w);
 void can_rx(CTU_CAN_FD_rx_frame *can_fd_rx_frame);
+int can_rx_nb(CTU_CAN_FD_rx_frame *can_fd_rx_frame);
 
 
 #endif /* INC_CAN_H_ */
