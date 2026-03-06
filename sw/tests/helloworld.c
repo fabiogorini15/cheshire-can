@@ -75,7 +75,7 @@ void test_statistics(void) {
         can_rx(&rx_frame);
 
     int empty = 0;
-    while (empty < 11) {
+    while (empty < 60) {
         if (can_rx_nb(&rx_frame) == 0) {
             empty = 0;  // recieved frame
             int data_ok = (rx_frame.data_w[0] == expected[0]) &&
@@ -87,7 +87,7 @@ void test_statistics(void) {
             }
         } else {  // empty buffer
             empty++;
-            wait_ms(1000); //---50000 1 ms ---1000 20us
+            wait_ms(1000); //---50000 1 ms ---1000 20us --5000 100us
         }
     }
     float total = ok_336+ ok_436 + ok_536;
